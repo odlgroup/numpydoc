@@ -250,6 +250,36 @@ class SphinxDocString(NumpyDocString):
             return self._f
         return None
 
+    def _get_class_that_defined_method(self, method):
+        """Return name of the class that defines the given method.
+
+        This function finds the (first) class that defines the given
+        ``method`` and returns a full module path ::
+
+            ~module.path.to.submodule.Class.method
+
+        that providuces a valid link in the Sphinx docs.
+
+        The function is intended for use with the
+        ``numpydoc_show_inherited_class_members`` option.
+        """
+        try:
+            method_name = method.__name__
+            if method.__self__:
+                classes = [method.__self__.__class__]
+            else:
+                # unbound method
+                classes = [method.im_class]
+            while classes:
+                c = classes.pop()
+                if method_name in c.__dict__:
+                    return '~' + c.__module__ + '.' + c.__name__ + '.'
+                else:
+                    classes = list(c.__bases__) + classes
+            return ''
+        except:
+            return ''
+
     def _str_member_list(self, name):
         """
         Generate a member listing, autosummary:: table where possible,
@@ -278,7 +308,7 @@ class SphinxDocString(NumpyDocString):
 
                 if param_obj and pydoc.getdoc(param_obj):
                     # Referenced object has a docstring
-                    autosum += ["   %s%s" % (prefix, param.name)]
+                    autosum += ["   %s%s%s" % (self._get_class_that_defined_method(param_obj), prefix, param.name)]
                 else:
                     others.append(param)
 
@@ -301,7 +331,7 @@ class SphinxDocString(NumpyDocString):
                         desc = "(%s) %s" % (param.type, desc)
                     out += [fmt % (name, desc)]
                 out += [hdr]
-            out += ['']
+
         return out
 
     def _str_section(self, name):
